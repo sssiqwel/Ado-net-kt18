@@ -1,0 +1,59 @@
+.sales-chart-card {
+    background: #ffffff;
+    border: 1px solid #dbe2ef;
+    border-radius: 14px;
+    padding: 1rem;
+    box-shadow: 0 6px 16px rgba(22, 34, 57, 0.08);
+}
+
+.chart-caption {
+    color: #556274;
+    margin-bottom: 1rem;
+}
+
+svg {
+    width: 100%;
+    height: auto;
+    background: #f9fbff;
+    border-radius: 10px;
+}
+
+.axis {
+    stroke: #627188;
+    stroke-width: 2;
+}
+
+.grid {
+    stroke: #e6ecf4;
+    stroke-width: 1;
+}
+
+.sales-line {
+    fill: none;
+    stroke: #2b7fff;
+    stroke-width: 4;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.sales-dot {
+    fill: #ff6b6b;
+    stroke: #ffffff;
+    stroke-width: 2;
+}
+
+.axis-marker {
+    fill: #7f8da0;
+}
+
+.tick-line {
+    stroke: #d6deea;
+    stroke-width: 1;
+}
+
+.totals {
+    margin-top: 1rem;
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}

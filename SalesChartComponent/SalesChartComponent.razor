@@ -1,0 +1,119 @@
+@implements IDisposable
+
+<div class="sales-chart-card">
+    <h3>Динамика продаж (последние 12 месяцев)</h3>
+    <p class="chart-caption">Значения обновляются каждые 2 секунды для имитации поступающих данных.</p>
+
+    <svg viewBox="0 0 800 360" role="img" aria-label="График продаж">
+        <line x1="@ChartLeft" y1="@ChartTop" x2="@ChartLeft" y2="@ChartBottom" class="axis" />
+        <line x1="@ChartLeft" y1="@ChartBottom" x2="@ChartRight" y2="@ChartBottom" class="axis" />
+
+        @foreach (var yTick in GetYTicks())
+        {
+            <line x1="@ChartLeft" y1="@yTick.Y" x2="@ChartRight" y2="@yTick.Y" class="grid" />
+            <circle cx="45" cy="@yTick.Y" r="2" class="axis-marker" />
+        }
+
+        <polyline points="@GetPolylinePoints()" class="sales-line" />
+
+        @foreach (var point in GetPointsWithCoordinates())
+        {
+            <circle cx="@point.X" cy="@point.Y" r="5" class="sales-dot" />
+            <line x1="@point.X" y1="@ChartBottom" x2="@point.X" y2="300" class="tick-line" />
+        }
+    </svg>
+
+    <div class="totals">
+        <span>Текущий месяц: <strong>@($"{_sales[^1].Value}k")</strong></span>
+        <span>Среднее: <strong>@($"{_sales.Average(x => x.Value):0.0}k")</strong></span>
+    </div>
+</div>
+
+@code {
+    private const double ChartLeft = 80;
+    private const double ChartTop = 30;
+    private const double ChartRight = 760;
+    private const double ChartBottom = 290;
+    private const int MaxValue = 220;
+
+    private readonly Random _random = new();
+    private readonly List<SalesPoint> _sales = new();
+    private PeriodicTimer? _timer;
+    private CancellationTokenSource? _cts;
+
+    protected override void OnInitialized()
+    {
+        SeedSales();
+        StartUpdates();
+    }
+
+    private void SeedSales()
+    {
+        var months = new[] { "Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек" };
+
+        _sales.Clear();
+        foreach (var month in months)
+        {
+            _sales.Add(new SalesPoint(month, _random.Next(60, 180)));
+        }
+    }
+
+    private void StartUpdates()
+    {
+        _cts = new CancellationTokenSource();
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+
+        _ = Task.Run(async () =>
+        {
+            while (_timer is not null && await _timer.WaitForNextTickAsync(_cts.Token))
+            {
+                UpdateLatestSalesPoint();
+                await InvokeAsync(StateHasChanged);
+            }
+        }, _cts.Token);
+    }
+
+    private void UpdateLatestSalesPoint()
+    {
+        var latest = _sales[^1].Value;
+        var next = Math.Clamp(latest + _random.Next(-12, 14), 40, MaxValue);
+        _sales[^1] = _sales[^1] with { Value = next };
+    }
+
+    private IEnumerable<(int Value, double Y)> GetYTicks()
+    {
+        for (var value = 0; value <= MaxValue; value += 40)
+        {
+            yield return (value, GetY(value));
+        }
+    }
+
+    private IEnumerable<(string Month, double X, double Y)> GetPointsWithCoordinates()
+    {
+        var step = (ChartRight - ChartLeft) / (_sales.Count - 1);
+        for (var i = 0; i < _sales.Count; i++)
+        {
+            yield return (_sales[i].Month, ChartLeft + i * step, GetY(_sales[i].Value));
+        }
+    }
+
+    private string GetPolylinePoints()
+    {
+        return string.Join(" ", GetPointsWithCoordinates().Select(p => $"{p.X:0.##},{p.Y:0.##}"));
+    }
+
+    private static double GetY(int value)
+    {
+        return ChartBottom - (value / (double)MaxValue) * (ChartBottom - ChartTop);
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _timer?.Dispose();
+        _cts?.Dispose();
+    }
+
+    private sealed record SalesPoint(string Month, int Value);
+}
+
