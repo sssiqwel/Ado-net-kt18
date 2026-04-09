@@ -1,26 +1,44 @@
 @implements IDisposable
+@using System.Globalization
 
 <div class="sales-chart-card">
     <h3>Динамика продаж (последние 12 месяцев)</h3>
     <p class="chart-caption">Значения обновляются каждые 2 секунды для имитации поступающих данных.</p>
 
     <svg viewBox="0 0 800 360" role="img" aria-label="График продаж">
-        <line x1="@ChartLeft" y1="@ChartTop" x2="@ChartLeft" y2="@ChartBottom" class="axis" />
-        <line x1="@ChartLeft" y1="@ChartBottom" x2="@ChartRight" y2="@ChartBottom" class="axis" />
+        <defs>
+            <linearGradient id="sales-area-gradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#2b7fff" stop-opacity="0.22" />
+                <stop offset="100%" stop-color="#2b7fff" stop-opacity="0.02" />
+            </linearGradient>
+        </defs>
+
+        <line x1="@Inv(ChartLeft)" y1="@Inv(ChartTop)" x2="@Inv(ChartLeft)" y2="@Inv(ChartBottom)" class="axis" />
+        <line x1="@Inv(ChartLeft)" y1="@Inv(ChartBottom)" x2="@Inv(ChartRight)" y2="@Inv(ChartBottom)" class="axis" />
 
         @foreach (var yTick in GetYTicks())
         {
-            <line x1="@ChartLeft" y1="@yTick.Y" x2="@ChartRight" y2="@yTick.Y" class="grid" />
-            <circle cx="45" cy="@yTick.Y" r="2" class="axis-marker" />
+            <line x1="@Inv(ChartLeft)" y1="@Inv(yTick.Y)" x2="@Inv(ChartRight)" y2="@Inv(yTick.Y)" class="grid" />
+            <foreignObject x="4" y="@Inv(yTick.Y - 10)" width="70" height="20">
+                <div xmlns="http://www.w3.org/1999/xhtml" class="axis-label-y">@($"{yTick.Value}k")</div>
+            </foreignObject>
         }
 
+        <polygon points="@GetAreaPolygonPoints()" class="sales-area" fill="url(#sales-area-gradient)" />
         <polyline points="@GetPolylinePoints()" class="sales-line" />
 
         @foreach (var point in GetPointsWithCoordinates())
         {
-            <circle cx="@point.X" cy="@point.Y" r="5" class="sales-dot" />
-            <line x1="@point.X" y1="@ChartBottom" x2="@point.X" y2="300" class="tick-line" />
+            <circle cx="@Inv(point.X)" cy="@Inv(point.Y)" r="5" class="sales-dot" />
+            <line x1="@Inv(point.X)" y1="@Inv(ChartBottom)" x2="@Inv(point.X)" y2="@Inv(ChartBottom + 6)" class="axis-tick" />
+            <foreignObject x="@Inv(point.X - 28)" y="298" width="56" height="52">
+                <div xmlns="http://www.w3.org/1999/xhtml" class="axis-label-x">@point.Month</div>
+            </foreignObject>
         }
+
+        <foreignObject x="4" y="8" width="72" height="22">
+            <div xmlns="http://www.w3.org/1999/xhtml" class="axis-title-y">тыс. ед.</div>
+        </foreignObject>
     </svg>
 
     <div class="totals">
@@ -30,10 +48,10 @@
 </div>
 
 @code {
-    private const double ChartLeft = 80;
-    private const double ChartTop = 30;
+    private const double ChartLeft = 88;
+    private const double ChartTop = 36;
     private const double ChartRight = 760;
-    private const double ChartBottom = 290;
+    private const double ChartBottom = 286;
     private const int MaxValue = 220;
 
     private readonly Random _random = new();
@@ -99,8 +117,23 @@
 
     private string GetPolylinePoints()
     {
-        return string.Join(" ", GetPointsWithCoordinates().Select(p => $"{p.X:0.##},{p.Y:0.##}"));
+        return string.Join(" ", GetPointsWithCoordinates().Select(p => $"{Inv(p.X)},{Inv(p.Y)}"));
     }
+
+    private string GetAreaPolygonPoints()
+    {
+        var pts = GetPointsWithCoordinates().ToList();
+        if (pts.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var top = string.Join(" ", pts.Select(p => $"{Inv(p.X)},{Inv(p.Y)}"));
+        return $"{Inv(ChartLeft)},{Inv(ChartBottom)} {top} {Inv(ChartRight)},{Inv(ChartBottom)}";
+    }
+
+    /// <summary>SVG требует точку как разделитель дроби; при ru-RU иначе ломается разбор points.</summary>
+    private static string Inv(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
 
     private static double GetY(int value)
     {
@@ -116,4 +149,3 @@
 
     private sealed record SalesPoint(string Month, int Value);
 }
-
